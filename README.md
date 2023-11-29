@@ -391,4 +391,52 @@ db.persons.updateOne({name:'Maria'},{$set:{age:29, hobbies:[{title:'Good food', 
 
 ## 7. Updating Matched Array Elements
 
+Vamos a analizar que pasa con esta sentencia `$and:[{"hobbies.title":"Sports"},{"hobbies.frequency":{$gte:3}}`
+
+```
+users> db.persons.find({$and:[{"hobbies.title":"Sports"},{"hobbies.frequency":{$gte:3}}]})
+[
+  {
+    _id: ObjectId('6567259ef5d66fd59e935426'),
+    name: 'Max',
+    hobbies: [
+      { title: 'Sports', frequency: 5 },
+      { title: 'Cooking', frequency: 3 },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true
+  },
+  {
+    _id: ObjectId('6567259ef5d66fd59e935428'),
+    name: 'Anna',
+    hobbies: [
+      { title: 'Sports', frequency: 2 },
+      { title: 'Yoga', frequency: 3 }
+    ],
+    isSporty: true,
+    TotalAge: null
+  },
+  {
+    _id: ObjectId('6567259ef5d66fd59e935429'),
+    name: 'Chris',
+    hobbies: [
+      { title: 'Sports', frequency: 5 },
+      { title: 'Cooking', frequency: 3 },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true,
+    TotalAge: 41.800000000000004
+  }
+]
+
+```
+Como vemos el caso de Maria, tiene un hobbie que es Sports y tambien una frequency de valor 3.  Lo que esta pasando es 
+no busca un hobbie = Sports y una frequency = 3. Lo valores no estan en el mismo diccionario pero están dentro del 
+de hobbies. 
+```
+ hobbies: [
+      { title: 'Sports', frequency: 2 },
+      { title: 'Yoga', frequency: 3 }
+```
+
 
