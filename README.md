@@ -9,6 +9,7 @@
 7. [Updating Matched Array Elements](#schema7)
 8. [Updating All Array Elements](#schema8)
 9. [Finding & Updating Specific Fields](#schema9)
+10. [Adding and Removing Elements to Arrays](#schema10)
 
 
 <hr>
@@ -555,3 +556,229 @@ users> db.persons.updateMany({TotalAge:{$gt:30}},{$inc:{'hobbies.`$[].frequency`
 <a name="schema9"></a>
 
 ## 9. Finding & Updating Specific Fields
+
+
+Si deseas actualizar todos los elementos que cumplen la condición, puedes utilizar el método de filtrado 
+posicional `$[<identifier>]` junto con la opción arrayFilters. Aquí hay un ejemplo de cómo podrías hacerlo:
+
+
+En este ejemplo, $[el] es un identificador que se asocia con el campo que deseas actualizar. 
+La opción `arrayFilters` permite filtrar los elementos del array que cumplen con la condición 
+especificada ('el.frequency': { $gt: 2 }).
+
+Esto debería actualizar todos los elementos del array que cumplen con la condición de 'hobbies.frequency': { $gt: 2 }. 
+
+```
+users> db.persons.updateMany({'hobbies.frequency':{$gt:2}},
+{$set:{"hobbies.$[el].goodFrequency":true}},
+{arrayFilters:[{"el.frequency":{$gt:2}}]})
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 5,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+users> db.persons.find()
+[
+  {
+    _id: ObjectId('6567259ef5d66fd59e935426'),
+    name: 'Max',
+    hobbies: [
+      {
+        title: 'Sports',
+        frequency: 5,
+        highFrequency: true,
+        goodFrequency: true
+      },
+      { title: 'Cooking', frequency: 3, goodFrequency: true },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true
+  },
+  {
+    _id: ObjectId('6567259ef5d66fd59e935427'),
+    name: 'Manuel',
+    hobbies: [
+      { title: 'Cooking', frequency: 4, goodFrequency: true },
+      { title: 'Cars', frequency: 1 }
+    ],
+    phone: '012177972',
+    isSporty: false,
+    TotalAge: 33
+  },
+  {
+    _id: ObjectId('6567259ef5d66fd59e935428'),
+    name: 'Anna',
+    hobbies: [
+      { title: 'Sports', frequency: 2 },
+      { title: 'Yoga', frequency: 3, goodFrequency: true }
+    ],
+    isSporty: true,
+    TotalAge: null
+  },
+  {
+    _id: ObjectId('6567259ef5d66fd59e935429'),
+    name: 'Chris',
+    hobbies: [
+      {
+        title: 'Sports',
+        frequency: 4,
+        highFrequency: true,
+        goodFrequency: true
+      },
+      { title: 'Cooking', frequency: 2 },
+      { title: 'Hiking', frequency: 0 }
+    ],
+    isSporty: true,
+    TotalAge: 41.800000000000004
+  },
+  {
+    _id: ObjectId('656755d39afc3679dfa0514b'),
+    name: 'Maria',
+    age: 29,
+    hobbies: [ { title: 'Good food', frequency: 3, goodFrequency: true } ],
+    isSporty: true
+  }
+]
+
+```
+
+
+<hr>
+<a name="schema10"></a>
+
+## 10. Adding and Removing Elemnts to Arrays
+
+### Adding
+
+Añadiendo 1 solo valor con `$push`:
+
+```
+db.persons.updateOne({name:'Maria'},{$push:{hobbies:{title:'Sports',frequency:2}}})
+
+  {
+    _id: ObjectId('656755d39afc3679dfa0514b'),
+    name: 'Maria',
+    age: 29,
+    hobbies: [
+      { title: 'Good food', frequency: 3, goodFrequency: true },
+      { title: 'Sports', frequency: 2 }
+    ],
+    isSporty: true
+  }
+]
+
+```
+Añadiendo varios valores a la vez.
+
+```
+users> db.persons.updateOne({name:'Maria'},
+{$push:{hobbies:{$each:[{title:'Good Wine', frequency:1},{title:'Hiking',frequency:2}],$sort:{frequency:-1}}}})
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+users> db.persons.find({name:'Maria'})
+[
+  {
+    _id: ObjectId('656755d39afc3679dfa0514b'),
+    name: 'Maria',
+    age: 29,
+    hobbies: [
+      { title: 'Good food', frequency: 3, goodFrequency: true },
+      { title: 'Sports', frequency: 2 },
+      { title: 'Hiking', frequency: 2 },
+      { title: 'Good Wine', frequency: 1 }
+    ],
+    isSporty: true
+  }
+]
+
+```
+- updateOne({ name: 'Maria' }, ...) establece la condición de filtrado para encontrar el documento con el 
+campo name igual a 'Maria'.
+
+- $push se utiliza para agregar elementos a un array. En este caso, se están agregando elementos al array
+hobbies dentro del documento que cumple con la condición.
+
+- $each se utiliza para especificar una lista de elementos que se agregarán al array. 
+En este caso, se están agregando dos elementos: { title: 'Good Wine', frequency: 1 } y { title: 'Hiking', frequency: 2 }.
+
+- $sort: { frequency: -1 } se utiliza para ordenar el array hobbies después de agregar los nuevos elementos. 
+El -1 indica orden descendente basado en el campo frequency. Esto significa que los elementos con frecuencia 
+más alta estarán al principio del array.
+
+#### "$addToSeT"
+
+```
+users> db.persons.updateOne({name:'Maria'},{$addToSet:{hobbies:{title:'Hiking',frequency:2}}})
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 0,
+  upsertedCount: 0
+}
+users> db.persons.find({name:'Maria'})
+[
+  {
+    _id: ObjectId('656755d39afc3679dfa0514b'),
+    name: 'Maria',
+    age: 29,
+    hobbies: [
+      { title: 'Good food', frequency: 3, goodFrequency: true },
+      { title: 'Sports', frequency: 2 },
+      { title: 'Hiking', frequency: 2 },
+      { title: 'Good Wine', frequency: 1 }
+    ],
+    isSporty: true
+  }
+]
+```
+
+Diferencias entre `$push` y `$addToSet`
+$push: Este operador se utiliza para agregar uno o varios elementos a un array existente en un documento. 
+Si el array ya contiene el valor que estás intentando agregar, $push simplemente lo añadirá nuevamente. 
+No realiza ninguna verificación para evitar duplicados.
+
+$addToSet: Este operador se utiliza para agregar elementos a un array, 
+pero con la particularidad de que verifica si el valor ya existe en el array antes de agregarlo. 
+Si el valor ya está presente, no se añadirá de nuevo, evitando duplicados en el array.
+
+
+### Removing
+
+- Eliminando un valor
+```
+users> db.persons.updateOne({name:'Chris'},{$pop:{hobbies:1}})
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+users> db.persons.find({name:'Chris'})
+[
+  {
+    _id: ObjectId('6567259ef5d66fd59e935429'),
+    name: 'Chris',
+    hobbies: [
+      {
+        title: 'Sports',
+        frequency: 4,
+        highFrequency: true,
+        goodFrequency: true
+      },
+      { title: 'Cooking', frequency: 2 }
+    ],
+    isSporty: true,
+    TotalAge: 41.800000000000004
+  }
+]
+
+```
