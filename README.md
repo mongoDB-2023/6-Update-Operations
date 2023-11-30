@@ -7,6 +7,8 @@
 5. [Getting Rid of Fields and Renaming Fields](#schema5)
 6. [Undestanding "upsert()"](#schema6)
 7. [Updating Matched Array Elements](#schema7)
+8. [Updating All Array Elements](#schema8)
+9. [Finding & Updating Specific Fields](#schema9)
 
 
 <hr>
@@ -431,12 +433,125 @@ users> db.persons.find({$and:[{"hobbies.title":"Sports"},{"hobbies.frequency":{$
 
 ```
 Como vemos el caso de Maria, tiene un hobbie que es Sports y tambien una frequency de valor 3.  Lo que esta pasando es 
-no busca un hobbie = Sports y una frequency = 3. Lo valores no estan en el mismo diccionario pero están dentro del 
+no busca un hobbie = Sports y una frequency = 3. Lo valores no estan en el mismo diccionario pero están dentro 
 de hobbies. 
 ```
  hobbies: [
       { title: 'Sports', frequency: 2 },
       { title: 'Yoga', frequency: 3 }
 ```
+Para solucionar esto vamos a utilizar `$elemMatch`
+
+```
+users> db.persons.find({hobbies:{$elemMatch:{title:'Sports',frequency:{$gt:3}}}})
+[
+  {
+    _id: ObjectId('6567259ef5d66fd59e935426'),
+    name: 'Max',
+    hobbies: [
+      { title: 'Sports', frequency: 5 },
+      { title: 'Cooking', frequency: 3 },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true
+  },
+  {
+    _id: ObjectId('6567259ef5d66fd59e935429'),
+    name: 'Chris',
+    hobbies: [
+      { title: 'Sports', frequency: 5 },
+      { title: 'Cooking', frequency: 3 },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true,
+    TotalAge: 41.800000000000004
+  }
+]
+```
+
+Ahora vamos a modificar los elementos anteriores, por lo tanto usamos el mismo filtro en `updateMany` y usamos
+`{$set:{'hobbies.$.highFrequency'}` para hacer referencia solo a los elementos que cumplen el filtro.
+```
+db.persons.updateMany({hobbies:{$elemMatch:{title:'Sports',frequency:{$gt:3}}}},{$set:{'hobbies.$.highFrequency':true}})
+
+[
+  {
+    _id: ObjectId('6567259ef5d66fd59e935426'),
+    name: 'Max',
+    hobbies: [
+      { title: 'Sports', frequency: 5, highFrequency: true },
+      { title: 'Cooking', frequency: 3 },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true
+  },
+  {
+    _id: ObjectId('6567259ef5d66fd59e935429'),
+    name: 'Chris',
+    hobbies: [
+      { title: 'Sports', frequency: 5, highFrequency: true },
+      { title: 'Cooking', frequency: 3 },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true,
+    TotalAge: 41.800000000000004
+  }
+]
+
+```
 
 
+<hr>
+<a name="schema8"></a>
+
+## 8. Updating All Array Elements
+
+```
+db.persons.updateMany({'hobbies.frequency':{$gt:2}},{$set:{'hobbies.$.goodFrequency':true}})
+{
+    _id: ObjectId('6567259ef5d66fd59e935429'),
+    name: 'Chris',
+    hobbies: [
+      {
+        title: 'Sports',
+        frequency: 5,
+        highFrequency: true,
+        goodFrequency: true
+      },
+      { title: 'Cooking', frequency: 3 },
+      { title: 'Hiking', frequency: 1 }
+    ],
+    isSporty: true,
+    TotalAge: 41.800000000000004
+  },
+
+```
+
+La razón por la cual solo se actualiza el primer valor que cumple el filtro es porque estás utilizando el 
+operador de posición `$` en la proyección, lo cual hace que se aplique solo al primer elemento que cumple la condición.
+
+Cuando usas `'hobbies.$.goodFrequency'` en la proyección, MongoDB interpreta eso para modificar el primer elemento 
+que coincide con la condición `'hobbies.frequency': {$gt: 2}`
+
+En este sentencia nos de un error.
+```
+users> db.persons.updateMany({TotalAge:{$gt:30}},{$inc:{'hobbies.frequency':-1}})
+MongoServerError: Cannot create field 'frequency' in element {hobbies: [ { title: "Cooking", frequency: 5, goodFrequency: true }, { title: "Cars", frequency: 2 } ]}
+
+```
+Añadiendo `$[]` le decimos que cualquier elemento que cumpla la condición.
+```
+users> db.persons.updateMany({TotalAge:{$gt:30}},{$inc:{'hobbies.`$[].frequency`':-1}})
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 2,
+  modifiedCount: 2,
+  upsertedCount: 0
+}
+```
+
+<hr>
+<a name="schema9"></a>
+
+## 9. Finding & Updating Specific Fields
